@@ -32,24 +32,43 @@ export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
 
     // Set up real-time subscription
     const channel = supabase
-      .channel(`bookmarks-${userId}`)
+      .channel(`bookmarks-${userId}`, {
+        config: {
+          broadcast: { self: true },
+        },
+      })
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'bookmarks',
-          filter: `user_id=eq.${userId}`,
+          // Temporarily removed filter to debug
         },
         (payload) => {
           console.log('🎯 Real-time event received!')
           console.log('Event type:', payload.eventType)
           console.log('Payload:', JSON.stringify(payload, null, 2))
-          console.log('Current bookmarks count:', bookmarks.length)
+          console.log('User ID from payload:', payload.new?.user_id || payload.old?.user_id)
+          console.log('Current user ID:', userId)
+
+          // Filter events to only process current user's bookmarks
+          const eventUserId = payload.new?.user_id || payload.old?.user_id
+          if (eventUserId !== userId) {
+            console.log('⏭️ Skipping event for different user:', eventUserId)
+            return
+          }
 
           if (payload.eventType === 'INSERT') {
             console.log('➕ Adding new bookmark:', payload.new)
-            setBookmarks((prev) => [payload.new as Bookmark, ...prev])
+            setBookmarks((prev) => {
+              // Check if bookmark already exists to avoid duplicates
+              if (prev.some((b) => b.id === payload.new.id)) {
+                console.log('⚠️ Bookmark already exists, skipping')
+                return prev
+              }
+              return [payload.new as Bookmark, ...prev]
+            })
           } else if (payload.eventType === 'DELETE') {
             console.log('🗑️ Deleting bookmark:', payload.old.id)
             setBookmarks((prev) => prev.filter((b) => b.id !== payload.old.id))
