@@ -1,15 +1,13 @@
 import { createServerClient } from '@supabase/ssr'
-import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextResponse, type NextRequest } from 'next/server'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const origin = requestUrl.origin
-  const redirectUrl = new URL('/', origin)
 
   if (code) {
-    const cookieStore = await cookies()
+    const response = NextResponse.redirect(new URL('/', origin))
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,28 +15,39 @@ export async function GET(request: Request) {
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll()
+            return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, {
-                ...options,
-                sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set({
+                name,
+                value,
               })
-            })
+            )
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, {
+                ...options,
+                path: '/',
+                sameSite: 'lax',
+                httpOnly: true,
+                secure: true,
+              })
+            )
           },
         },
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (!error) {
-      return NextResponse.redirect(redirectUrl)
+    if (error) {
+      console.error('Auth error:', error)
+      return NextResponse.redirect(new URL('/login', origin))
     }
+
+    console.log('✅ Auth successful:', data.user?.email)
+    return response
   }
 
-  // Return to login if something went wrong
   return NextResponse.redirect(new URL('/login', origin))
 }
