@@ -20,10 +20,8 @@ export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
   const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
 
-  // Update bookmarks when initialBookmarks change
-  useEffect(() => {
-    setBookmarks(initialBookmarks)
-  }, [initialBookmarks])
+  // Don't sync with initialBookmarks after mount - rely on realtime updates only
+  // This prevents router.refresh() from overwriting realtime changes
 
   useEffect(() => {
     console.log('🔄 Setting up real-time subscription for user:', userId)
