@@ -5,8 +5,9 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const origin = requestUrl.origin
+  const isHttps = requestUrl.protocol === 'https:'
 
-  console.log('🔄 OAuth callback received, code:', code ? 'present' : 'missing')
+  console.log('🔄 OAuth callback - Origin:', origin, 'HTTPS:', isHttps, 'Code:', code ? 'present' : 'missing')
 
   if (code) {
     const response = NextResponse.redirect(new URL('/', origin))
@@ -26,11 +27,12 @@ export async function GET(request: NextRequest) {
                 value,
               })
             )
+            console.log('🍪 Setting cookies:', cookiesToSet.map(c => c.name).join(', '))
             cookiesToSet.forEach(({ name, value, options }) =>
               response.cookies.set(name, value, {
                 ...options,
                 sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
+                secure: isHttps,
               })
             )
           },
@@ -41,7 +43,7 @@ export async function GET(request: NextRequest) {
     const { error, data } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
-      console.error('Auth error:', error)
+      console.error('❌ Auth error:', error.message, error.status)
       return NextResponse.redirect(new URL('/login', origin))
     }
 
@@ -49,5 +51,6 @@ export async function GET(request: NextRequest) {
     return response
   }
 
+  console.log('⚠️ No code provided, redirecting to login')
   return NextResponse.redirect(new URL('/login', origin))
 }
