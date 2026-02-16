@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
               response.cookies.set(name, value, {
                 ...options,
                 sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
               })
             )
           },
