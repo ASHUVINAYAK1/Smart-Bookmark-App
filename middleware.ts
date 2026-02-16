@@ -9,6 +9,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log('🔐 Middleware - Path:', request.nextUrl.pathname, 'User:', user ? user.email : 'none')
+
   // Protect all routes except login and auth callback
   if (
     !user &&

@@ -6,6 +6,8 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get('code')
   const origin = requestUrl.origin
 
+  console.log('🔄 OAuth callback received, code:', code ? 'present' : 'missing')
+
   if (code) {
     const response = NextResponse.redirect(new URL('/', origin))
 
@@ -27,10 +29,7 @@ export async function GET(request: NextRequest) {
             cookiesToSet.forEach(({ name, value, options }) =>
               response.cookies.set(name, value, {
                 ...options,
-                path: '/',
                 sameSite: 'lax',
-                httpOnly: true,
-                secure: true,
               })
             )
           },

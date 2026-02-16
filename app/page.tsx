@@ -12,6 +12,8 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log('🏠 Home page - User:', user ? user.email : 'not authenticated')
+
   if (!user) {
     redirect('/login')
   }
