@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { ExternalLink, Trash2, Bookmark as BookmarkIcon } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface BookmarkListProps {
   initialBookmarks: Bookmark[]
@@ -17,6 +18,7 @@ export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(initialBookmarks)
   const { toast } = useToast()
   const supabase = useMemo(() => createClient(), [])
+  const router = useRouter()
 
   // Update bookmarks when initialBookmarks change
   useEffect(() => {
@@ -92,6 +94,10 @@ export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
         title: 'Success',
         description: 'Bookmark deleted successfully',
       })
+
+      // Refresh the page data to remove the deleted bookmark
+      console.log('🔄 Refreshing page data after delete...')
+      router.refresh()
     } catch (error) {
       toast({
         variant: 'destructive',

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface AddBookmarkFormProps {
   userId: string
@@ -19,6 +20,7 @@ export function AddBookmarkForm({ userId }: AddBookmarkFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const supabase = createClient()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,14 +67,18 @@ export function AddBookmarkForm({ userId }: AddBookmarkFormProps) {
 
       console.log('✅ Bookmark inserted successfully:', data)
 
+      // Clear form
+      setUrl('')
+      setTitle('')
+
       toast({
         title: 'Success',
         description: 'Bookmark added successfully',
       })
 
-      // Clear form
-      setUrl('')
-      setTitle('')
+      // Refresh the page data to show the new bookmark
+      console.log('🔄 Refreshing page data...')
+      router.refresh()
     } catch (error) {
       toast({
         variant: 'destructive',
