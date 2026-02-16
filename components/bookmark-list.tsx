@@ -25,6 +25,8 @@ export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
 
   useEffect(() => {
     console.log('🔄 Setting up real-time subscription for user:', userId)
+    console.log('📍 Environment:', process.env.NODE_ENV)
+    console.log('🔗 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
 
     // Set up real-time subscription
     const channel = supabase
@@ -54,12 +56,19 @@ export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('📡 Realtime subscription status:', status)
+        if (err) {
+          console.error('❌ Subscription error:', err)
+        }
         if (status === 'SUBSCRIBED') {
           console.log('✅ Successfully subscribed to real-time updates!')
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ Failed to subscribe to real-time updates')
+        } else if (status === 'TIMED_OUT') {
+          console.error('⏱️ Subscription timed out')
+        } else if (status === 'CLOSED') {
+          console.warn('🔒 Channel closed')
         }
       })
 
