@@ -40,7 +40,10 @@ export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('✅ Real-time event received:', payload.eventType, payload)
+          console.log('🎯 Real-time event received!')
+          console.log('Event type:', payload.eventType)
+          console.log('Payload:', JSON.stringify(payload, null, 2))
+          console.log('Current bookmarks count:', bookmarks.length)
 
           if (payload.eventType === 'INSERT') {
             console.log('➕ Adding new bookmark:', payload.new)

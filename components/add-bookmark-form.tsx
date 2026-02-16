@@ -48,15 +48,22 @@ export function AddBookmarkForm({ userId }: AddBookmarkFormProps) {
     setIsLoading(true)
 
     try {
-      const { error } = await supabase
+      console.log('📝 Inserting bookmark for user:', userId)
+      const { data, error } = await supabase
         .from('bookmarks')
         .insert({
           user_id: userId,
           title,
           url,
         })
+        .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Insert error:', error)
+        throw error
+      }
+
+      console.log('✅ Bookmark inserted successfully:', data)
 
       toast({
         title: 'Success',
