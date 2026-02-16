@@ -94,6 +94,76 @@ npm run dev
 - Empty states
 - Mobile responsive
 
+## Problems Encountered & Solutions
+
+### Real-time Updates Not Working
+
+**Problem:** Bookmarks were not updating in real-time across tabs. The subscription showed `SUBSCRIBED` status, but no events were being received when adding or deleting bookmarks.
+
+**Root Causes Identified:**
+
+1. **React useEffect Dependency Issue**
+   - **Problem:** The `supabase` client instance was included in the useEffect dependency array, causing the subscription to recreate on every render
+   - **Solution:**
+     - Used `useMemo` to create a stable Supabase client instance
+     - Removed `supabase` from the useEffect dependencies
+     - Only kept `userId` in the dependency array
+
+2. **Missing REPLICA IDENTITY**
+   - **Problem:** The `bookmarks` table didn't have proper replica identity set, which prevented Supabase Realtime from broadcasting change events
+   - **Solution:** Set replica identity to FULL with SQL:
+     ```sql
+     ALTER TABLE bookmarks REPLICA IDENTITY FULL;
+     ```
+   - This command enables PostgreSQL to track all column changes and broadcast them via Realtime
+
+3. **Realtime Publication Configuration**
+   - **Problem:** Initial confusion about enabling Realtime - the Database Replication UI is different from Realtime configuration
+   - **Solution:** Verified the table was added to the `supabase_realtime` publication:
+     ```sql
+     ALTER PUBLICATION supabase_realtime ADD TABLE bookmarks;
+     ```
+
+**Final Working Implementation:**
+
+```typescript
+// bookmark-list.tsx
+const supabase = useMemo(() => createClient(), []) // Stable client instance
+
+useEffect(() => {
+  const channel = supabase
+    .channel(`bookmarks-${userId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'bookmarks',
+      filter: `user_id=eq.${userId}`,
+    }, (payload) => {
+      // Handle INSERT, DELETE, UPDATE events
+    })
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}, [userId]) // Only userId in dependencies
+```
+
+**Verification Steps:**
+1. Check subscription status logs for `SUBSCRIBED`
+2. Open two browser tabs
+3. Add/delete bookmark in one tab
+4. Verify event logs appear in console: `✅ Real-time event received: INSERT`
+5. Confirm UI updates without page refresh
+
+**Key Takeaways:**
+- `REPLICA IDENTITY FULL` is crucial for Realtime to work properly
+- Avoid putting Supabase client instances in React dependency arrays
+- The Supabase "Database Replication" UI is for data warehousing, not Realtime
+- Always test real-time features across multiple browser tabs/windows
+
+---
+
 ## Database Schema
 
 ```sql
