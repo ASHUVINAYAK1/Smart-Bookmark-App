@@ -49,33 +49,37 @@ export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
           console.log('🎯 Real-time event received!')
           console.log('Event type:', payload.eventType)
           console.log('Payload:', JSON.stringify(payload, null, 2))
-          console.log('User ID from payload:', payload.new?.user_id || payload.old?.user_id)
+
+          const newRecord = payload.new as Bookmark | null
+          const oldRecord = payload.old as Bookmark | null
+
+          console.log('User ID from payload:', newRecord?.user_id || oldRecord?.user_id)
           console.log('Current user ID:', userId)
 
           // Filter events to only process current user's bookmarks
-          const eventUserId = payload.new?.user_id || payload.old?.user_id
+          const eventUserId = newRecord?.user_id || oldRecord?.user_id
           if (eventUserId !== userId) {
             console.log('⏭️ Skipping event for different user:', eventUserId)
             return
           }
 
-          if (payload.eventType === 'INSERT') {
-            console.log('➕ Adding new bookmark:', payload.new)
+          if (payload.eventType === 'INSERT' && newRecord) {
+            console.log('➕ Adding new bookmark:', newRecord)
             setBookmarks((prev) => {
               // Check if bookmark already exists to avoid duplicates
-              if (prev.some((b) => b.id === payload.new.id)) {
+              if (prev.some((b) => b.id === newRecord.id)) {
                 console.log('⚠️ Bookmark already exists, skipping')
                 return prev
               }
-              return [payload.new as Bookmark, ...prev]
+              return [newRecord, ...prev]
             })
-          } else if (payload.eventType === 'DELETE') {
-            console.log('🗑️ Deleting bookmark:', payload.old.id)
-            setBookmarks((prev) => prev.filter((b) => b.id !== payload.old.id))
-          } else if (payload.eventType === 'UPDATE') {
-            console.log('📝 Updating bookmark:', payload.new)
+          } else if (payload.eventType === 'DELETE' && oldRecord) {
+            console.log('🗑️ Deleting bookmark:', oldRecord.id)
+            setBookmarks((prev) => prev.filter((b) => b.id !== oldRecord.id))
+          } else if (payload.eventType === 'UPDATE' && newRecord) {
+            console.log('📝 Updating bookmark:', newRecord)
             setBookmarks((prev) =>
-              prev.map((b) => (b.id === payload.new.id ? (payload.new as Bookmark) : b))
+              prev.map((b) => (b.id === newRecord.id ? newRecord : b))
             )
           }
         }
