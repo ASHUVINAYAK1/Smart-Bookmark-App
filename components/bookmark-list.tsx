@@ -1,0 +1,158 @@
+'use client'
+
+import { useEffect, useState, useMemo } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import type { Bookmark } from '@/types/database'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useToast } from '@/components/ui/use-toast'
+import { ExternalLink, Trash2, Bookmark as BookmarkIcon } from 'lucide-react'
+
+interface BookmarkListProps {
+  initialBookmarks: Bookmark[]
+  userId: string
+}
+
+export function BookmarkList({ initialBookmarks, userId }: BookmarkListProps) {
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>(initialBookmarks)
+  const { toast } = useToast()
+  const supabase = useMemo(() => createClient(), [])
+
+  // Update bookmarks when initialBookmarks change
+  useEffect(() => {
+    setBookmarks(initialBookmarks)
+  }, [initialBookmarks])
+
+  useEffect(() => {
+    console.log('🔄 Setting up real-time subscription for user:', userId)
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel(`bookmarks-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookmarks',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('✅ Real-time event received:', payload.eventType, payload)
+
+          if (payload.eventType === 'INSERT') {
+            console.log('➕ Adding new bookmark:', payload.new)
+            setBookmarks((prev) => [payload.new as Bookmark, ...prev])
+          } else if (payload.eventType === 'DELETE') {
+            console.log('🗑️ Deleting bookmark:', payload.old.id)
+            setBookmarks((prev) => prev.filter((b) => b.id !== payload.old.id))
+          } else if (payload.eventType === 'UPDATE') {
+            console.log('📝 Updating bookmark:', payload.new)
+            setBookmarks((prev) =>
+              prev.map((b) => (b.id === payload.new.id ? (payload.new as Bookmark) : b))
+            )
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Realtime subscription status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to real-time updates!')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Failed to subscribe to real-time updates')
+        }
+      })
+
+    // Cleanup subscription
+    return () => {
+      console.log('🧹 Cleaning up realtime subscription')
+      supabase.removeChannel(channel)
+    }
+  }, [userId]) // FIXED: Removed supabase from dependencies
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from('bookmarks').delete().eq('id', id)
+
+      if (error) throw error
+
+      toast({
+        title: 'Success',
+        description: 'Bookmark deleted successfully',
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete bookmark. Please try again.',
+      })
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+
+  const truncateUrl = (url: string, maxLength = 50) => {
+    if (url.length <= maxLength) return url
+    return url.substring(0, maxLength) + '...'
+  }
+
+  if (bookmarks.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <BookmarkIcon className="h-12 w-12 text-muted-foreground mb-4" />
+          <CardTitle className="text-xl mb-2">No bookmarks yet</CardTitle>
+          <CardDescription>
+            Start adding your favorite websites to keep them organized
+          </CardDescription>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {bookmarks.map((bookmark) => (
+        <Card key={bookmark.id} className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="text-lg line-clamp-1">{bookmark.title}</CardTitle>
+            <CardDescription className="flex items-center gap-1">
+              <ExternalLink className="h-3 w-3" />
+              {truncateUrl(bookmark.url)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Added on {formatDate(bookmark.created_at)}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => window.open(bookmark.url, '_blank')}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Visit
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => handleDelete(bookmark.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}

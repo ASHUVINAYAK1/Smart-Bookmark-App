@@ -1,19 +1,52 @@
-export interface Bookmark {
-  id: string;
-  user_id: string;
-  title: string;
-  url: string;
-  created_at: string;
-}
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export interface Database {
   public: {
     Tables: {
       bookmarks: {
-        Row: Bookmark;
-        Insert: Omit<Bookmark, 'id' | 'created_at'>;
-        Update: Partial<Omit<Bookmark, 'id' | 'user_id'>>;
-      };
-    };
-  };
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          url: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          url: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          url?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
+
+export type Bookmark = Database['public']['Tables']['bookmarks']['Row']
